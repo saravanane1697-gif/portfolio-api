@@ -46,7 +46,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("ReactPolicy",
         policy =>
         {
-            policy.AllowAnyOrigin()
+            policy.WithOrigins("https://portfolio-react-rj0a.onrender.com")
                   .AllowAnyMethod()
                   .AllowAnyHeader();
         });

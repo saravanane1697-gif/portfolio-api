@@ -66,7 +66,7 @@ namespace PortfolioAPI.Controllers
             if (file == null || file.Length == 0)
                 return BadRequest("No file uploaded.");
 
-            var uploadParams = new AutoUploadParams
+            var uploadParams = new RawUploadParams
             {
                 File = new FileDescription(file.FileName, file.OpenReadStream()),
                 Folder = "portfolio/resumes"

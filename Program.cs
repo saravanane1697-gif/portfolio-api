@@ -1,3 +1,4 @@
+using CloudinaryDotNet;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -40,6 +41,15 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IEmailService,
     EmailService>();
+
+builder.Services.AddSingleton(sp => {
+    var config = sp.GetRequiredService<IConfiguration>();
+    return new Cloudinary(new Account(
+        config["Cloudinary:CloudName"],
+        config["Cloudinary:ApiKey"],
+        config["Cloudinary:ApiSecret"]
+    ));
+});
 
 builder.Services.AddCors(options =>
 {

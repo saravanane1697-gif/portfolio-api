@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,17 +13,18 @@ namespace PortfolioAPI.Controllers
     public class ProfileController : ControllerBase
     {
         private readonly PortfolioDbContext _context;
+        private readonly Cloudinary _cloudinary;
 
-        public ProfileController(PortfolioDbContext context)
+        public ProfileController(PortfolioDbContext context, Cloudinary cloudinary)
         {
             _context = context;
+            _cloudinary = cloudinary;
         }
 
         [HttpGet]
         public async Task<IActionResult> Get()
         {
             var profile = await _context.Profiles.FirstOrDefaultAsync();
-
             return Ok(profile);
         }
 
@@ -30,65 +33,30 @@ namespace PortfolioAPI.Controllers
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UploadPhoto(IFormFile file)
         {
-            Console.WriteLine("Upload endpoint hit");
-            //if (file == null || file.Length == 0)
-            //    return BadRequest("No file uploaded.");
-            if (file == null)
+            if (file == null) return BadRequest("File is null");
+
+            var uploadParams = new ImageUploadParams
             {
-                return BadRequest("File is null");
-            }
+                File = new FileDescription(file.FileName, file.OpenReadStream()),
+                Folder = "portfolio/photos"
+            };
 
-            var uploadsFolder =
-                Path.Combine(
-                    Directory.GetCurrentDirectory(),
-                    "wwwroot",
-                    "uploads");
+            var uploadResult = await _cloudinary.UploadAsync(uploadParams);
 
-            if (!Directory.Exists(uploadsFolder))
-                Directory.CreateDirectory(uploadsFolder);
+            if (uploadResult.Error != null)
+                return BadRequest(uploadResult.Error.Message);
 
-            var fileName =
-                $"{Guid.NewGuid()}_{file.FileName}";
+            var imageUrl = uploadResult.SecureUrl.ToString();
 
-            var filePath =
-                Path.Combine(
-                    uploadsFolder,
-                    fileName);
-
-            using (var stream =
-                   new FileStream(
-                       filePath,
-                       FileMode.Create))
-            {
-                await file.CopyToAsync(stream);
-            }
-
-            var profile =
-                await _context.Profiles
-                    .FirstOrDefaultAsync();
-
+            var profile = await _context.Profiles.FirstOrDefaultAsync();
             if (profile != null)
             {
-                profile.ImageUrl =
-                    $"/uploads/{fileName}";
-
+                profile.ImageUrl = imageUrl;
                 await _context.SaveChangesAsync();
             }
 
-            return Ok(new
-            {
-                imageUrl =
-                    $"/uploads/{fileName}"
-            });
+            return Ok(new { imageUrl });
         }
-
-        [Authorize]
-        [HttpGet("secure")]
-        public IActionResult Secure()
-        {
-            return Ok("JWT Works");
-        }
-
 
         [Authorize]
         [HttpPost("upload-resume")]
@@ -98,48 +66,31 @@ namespace PortfolioAPI.Controllers
             if (file == null || file.Length == 0)
                 return BadRequest("No file uploaded.");
 
-            var uploadsFolder =
-                Path.Combine(
-                    Directory.GetCurrentDirectory(),
-                    "wwwroot",
-                    "resumes");
-
-            if (!Directory.Exists(uploadsFolder))
-                Directory.CreateDirectory(uploadsFolder);
-
-            var fileName =
-                $"{Guid.NewGuid()}_{file.FileName}";
-
-            var filePath =
-                Path.Combine(
-                    uploadsFolder,
-                    fileName);
-
-            using (var stream =
-                   new FileStream(
-                       filePath,
-                       FileMode.Create))
+            var uploadParams = new RawUploadParams
             {
-                await file.CopyToAsync(stream);
-            }
+                File = new FileDescription(file.FileName, file.OpenReadStream()),
+                Folder = "portfolio/resumes"
+            };
 
-            var profile =
-                await _context.Profiles
-                    .FirstOrDefaultAsync();
+            var uploadResult = await _cloudinary.UploadAsync(uploadParams);
 
+            if (uploadResult.Error != null)
+                return BadRequest(uploadResult.Error.Message);
+
+            var resumeUrl = uploadResult.SecureUrl.ToString();
+
+            var profile = await _context.Profiles.FirstOrDefaultAsync();
             if (profile != null)
             {
-                profile.ResumeUrl =
-                    $"/resumes/{fileName}";
-
+                profile.ResumeUrl = resumeUrl;
                 await _context.SaveChangesAsync();
             }
 
-            return Ok(new
-            {
-                resumeUrl =
-                    $"/resumes/{fileName}"
-            });
+            return Ok(new { resumeUrl });
         }
+
+        [Authorize]
+        [HttpGet("secure")]
+        public IActionResult Secure() => Ok("JWT Works");
     }
 }

@@ -35,7 +35,7 @@ namespace PortfolioAPI.Services
             };
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
 
-            var response = await _httpClient.SendAsync(request);
+            var response = await _httpClient.SendAsync(request, CancellationToken.None);
 
             if (!response.IsSuccessStatusCode)
             {

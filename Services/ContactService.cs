@@ -28,8 +28,18 @@ namespace PortfolioAPI.Services
         {
             var result = await _repository.AddAsync(message);
 
-            // Fire-and-forget: don't block the HTTP response on email sending
-            _ = SendNotificationEmailsAsync(message);
+            // Fire-and-forget but detached from request cancellation
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await SendNotificationEmailsAsync(message);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Background email task failed: {ex.Message}");
+                }
+            });
 
             return result;
         }

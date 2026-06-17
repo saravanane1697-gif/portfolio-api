@@ -89,6 +89,19 @@ namespace PortfolioAPI.Controllers
             return Ok(new { resumeUrl });
         }
 
+        [HttpGet("download-resume")]
+        public async Task<IActionResult> DownloadResume()
+        {
+            var profile = await _context.Profiles.FirstOrDefaultAsync();
+            if (profile == null || string.IsNullOrEmpty(profile.ResumeUrl))
+                return NotFound("No resume found.");
+
+            using var httpClient = new HttpClient();
+            var bytes = await httpClient.GetByteArrayAsync(profile.ResumeUrl);
+
+            return File(bytes, "application/pdf", "Saravanan_Resume.pdf");
+        }
+
         [Authorize]
         [HttpGet("secure")]
         public IActionResult Secure() => Ok("JWT Works");

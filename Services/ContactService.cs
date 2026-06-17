@@ -28,44 +28,43 @@ namespace PortfolioAPI.Services
         {
             var result = await _repository.AddAsync(message);
 
-            // Notify you
-            await _emailService.SendEmailAsync(
-                "saravanane1697@gmail.com",
-                "New Portfolio Contact Message",
-                $@"
-                <h2>New Portfolio Contact Message</h2>
-
-                <p><b>Name:</b> {message.Name}</p>
-                <p><b>Email:</b> {message.Email}</p>
-                <p><b>Subject:</b> {message.Subject}</p>
-                <p><b>Message:</b> {message.Message}</p>
-                ");
-
-                    // Auto reply to visitor
-                    await _emailService.SendEmailAsync(
-                        message.Email,
-                        "Thank you for contacting me",
-                        $@"
-                <h2>Hello {message.Name},</h2>
-
-                <p>
-                    Thank you for contacting me through my portfolio website.
-                </p>
-
-                <p>
-                    I have received your message and will get back to you soon.
-                </p>
-
-                <br/>
-
-                <p>
-                    Regards,<br/>
-                    Saravanan Elangovan<br/>
-                    .NET Full Stack Developer
-                </p>
-                ");
+            // Fire-and-forget: don't block the HTTP response on email sending
+            _ = SendNotificationEmailsAsync(message);
 
             return result;
+        }
+
+        private async Task SendNotificationEmailsAsync(ContactMessage message)
+        {
+            try
+            {
+                await _emailService.SendEmailAsync(
+                    "saravanane1697@gmail.com",
+                    "New Portfolio Contact Message",
+                    $@"
+            <h2>New Portfolio Contact Message</h2>
+            <p><b>Name:</b> {message.Name}</p>
+            <p><b>Email:</b> {message.Email}</p>
+            <p><b>Subject:</b> {message.Subject}</p>
+            <p><b>Message:</b> {message.Message}</p>
+            ");
+
+                await _emailService.SendEmailAsync(
+                    message.Email,
+                    "Thank you for contacting me",
+                    $@"
+            <h2>Hello {message.Name},</h2>
+            <p>Thank you for contacting me through my portfolio website.</p>
+            <p>I have received your message and will get back to you soon.</p>
+            <br/>
+            <p>Regards,<br/>Saravanan Elangovan<br/>.NET Full Stack Developer</p>
+            ");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Email sending failed: {ex.Message}");
+                // Don't rethrow — message is already saved, email failure shouldn't break the API response
+            }
         }
 
         public async Task<ContactMessage?> MarkAsReadAsync(int id)

@@ -12,42 +12,39 @@ namespace PortfolioAPI.Services
             _configuration = configuration;
         }
 
-        public async Task SendEmailAsync( string toEmail,
-            string subject,
-            string body)
+        public async Task SendEmailAsync(string toEmail, string subject, string body)
         {
             var email = new MimeMessage();
 
-            email.From.Add(
-                new MailboxAddress(
-                    "Portfolio Website",
-                    _configuration["EmailSettings:SenderEmail"]));
-
-            email.To.Add(
-                MailboxAddress.Parse(toEmail));
-
+            email.From.Add(new MailboxAddress("Portfolio Website", _configuration["EmailSettings:SenderEmail"]));
+            email.To.Add(MailboxAddress.Parse(toEmail));
             email.Subject = subject;
+            email.Body = new TextPart("html") { Text = body };
 
-            email.Body = new TextPart("html")
+            using var smtp = new SmtpClient
             {
-                Text = body
+                Timeout = 10000 // 10 seconds, instead of indefinite hang
             };
 
-            using var smtp = new SmtpClient();
+            try
+            {
+                await smtp.ConnectAsync(
+                    _configuration["EmailSettings:SmtpServer"],
+                    int.Parse(_configuration["EmailSettings:Port"]),
+                    MailKit.Security.SecureSocketOptions.StartTls);
 
-            await smtp.ConnectAsync(
-                _configuration["EmailSettings:SmtpServer"],
-                int.Parse(
-                    _configuration["EmailSettings:Port"]),
-                MailKit.Security.SecureSocketOptions.StartTls);
+                await smtp.AuthenticateAsync(
+                    _configuration["EmailSettings:Username"],
+                    _configuration["EmailSettings:Password"]);
 
-            await smtp.AuthenticateAsync(
-                _configuration["EmailSettings:Username"],
-                _configuration["EmailSettings:Password"]);
-
-            await smtp.SendAsync(email);
-
-            await smtp.DisconnectAsync(true);
+                await smtp.SendAsync(email);
+                await smtp.DisconnectAsync(true);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"SMTP Error: {ex.Message}");
+                throw; // rethrow so the calling fire-and-forget catch logs it too
+            }
         }
     }
 }

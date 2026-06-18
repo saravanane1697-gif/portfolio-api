@@ -32,6 +32,7 @@ builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<ISkillRepository, SkillRepository>();
 builder.Services.AddScoped<ISkillService, SkillService>();
 builder.Services.AddScoped<IExperienceRepository, ExperienceRepository>();
+builder.Services.AddScoped<IExperienceService, ExperienceService>();
 builder.Services.AddHttpClient<IEmailService, EmailService>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(30);

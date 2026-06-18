@@ -6,34 +6,33 @@ namespace PortfolioAPI.Services
     public class ContactService : IContactService
     {
         private readonly IContactRepository _repository;
-        private readonly IEmailService _emailService;
+        private readonly IServiceScopeFactory _scopeFactory;
 
-        public ContactService(IContactRepository repository, IEmailService emailService)
+        public ContactService(IContactRepository repository, IServiceScopeFactory scopeFactory)
         {
             _repository = repository;
-            _emailService = emailService;
+            _scopeFactory = scopeFactory;
         }
 
         public async Task<List<ContactMessage>> GetAllMessagesAsync()
-        {
-            return await _repository.GetAllAsync();
-        }
+            => await _repository.GetAllAsync();
 
         public async Task<ContactMessage?> GetMessageByIdAsync(int id)
-        {
-            return await _repository.GetByIdAsync(id);
-        }
+            => await _repository.GetByIdAsync(id);
 
         public async Task<ContactMessage> AddMessageAsync(ContactMessage message)
         {
             var result = await _repository.AddAsync(message);
 
-            // Fire-and-forget but detached from request cancellation
+            // Fire-and-forget with its own DI scope (avoids disposed HttpClient issue)
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    await SendNotificationEmailsAsync(message);
+                    using var scope = _scopeFactory.CreateScope();
+                    var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+
+                    await SendNotificationEmailsAsync(emailService, message);
                 }
                 catch (Exception ex)
                 {
@@ -44,47 +43,42 @@ namespace PortfolioAPI.Services
             return result;
         }
 
-        private async Task SendNotificationEmailsAsync(ContactMessage message)
+        private async Task SendNotificationEmailsAsync(IEmailService emailService, ContactMessage message)
         {
             try
             {
-                await _emailService.SendEmailAsync(
+                await emailService.SendEmailAsync(
                     "saravanane1697@gmail.com",
                     "New Portfolio Contact Message",
                     $@"
-            <h2>New Portfolio Contact Message</h2>
-            <p><b>Name:</b> {message.Name}</p>
-            <p><b>Email:</b> {message.Email}</p>
-            <p><b>Subject:</b> {message.Subject}</p>
-            <p><b>Message:</b> {message.Message}</p>
-            ");
+        <h2>New Portfolio Contact Message</h2>
+        <p><b>Name:</b> {message.Name}</p>
+        <p><b>Email:</b> {message.Email}</p>
+        <p><b>Subject:</b> {message.Subject}</p>
+        <p><b>Message:</b> {message.Message}</p>
+        ");
 
-                await _emailService.SendEmailAsync(
+                await emailService.SendEmailAsync(
                     message.Email,
                     "Thank you for contacting me",
                     $@"
-            <h2>Hello {message.Name},</h2>
-            <p>Thank you for contacting me through my portfolio website.</p>
-            <p>I have received your message and will get back to you soon.</p>
-            <br/>
-            <p>Regards,<br/>Saravanan Elangovan<br/>.NET Full Stack Developer</p>
-            ");
+        <h2>Hello {message.Name},</h2>
+        <p>Thank you for contacting me through my portfolio website.</p>
+        <p>I have received your message and will get back to you soon.</p>
+        <br/>
+        <p>Regards,<br/>Saravanan Elangovan<br/>.NET Full Stack Developer</p>
+        ");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Email sending failed: {ex.Message}");
-                // Don't rethrow — message is already saved, email failure shouldn't break the API response
             }
         }
 
         public async Task<ContactMessage?> MarkAsReadAsync(int id)
-        {
-            return await _repository.MarkAsReadAsync(id);
-        }
+            => await _repository.MarkAsReadAsync(id);
 
         public async Task<bool> DeleteMessageAsync(int id)
-        {
-            return await _repository.DeleteAsync(id);
-        }
+            => await _repository.DeleteAsync(id);
     }
 }
